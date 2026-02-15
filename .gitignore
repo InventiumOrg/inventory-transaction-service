@@ -35,3 +35,6 @@ out/
 
 ### VS Code ###
 .vscode/
+
+### Certificates ###
+src/main/resources/certs/
