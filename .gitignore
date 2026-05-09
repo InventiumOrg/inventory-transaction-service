@@ -38,3 +38,4 @@ out/
 
 ### Certificates ###
 src/main/resources/certs/
+.env

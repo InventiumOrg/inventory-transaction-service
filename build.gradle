@@ -1,5 +1,6 @@
 plugins {
 	id 'java'
+	id 'maven-publish' 
 	id 'org.springframework.boot' version '4.0.1'
 	id 'io.spring.dependency-management' version '1.1.7'
 }
@@ -25,6 +26,7 @@ repositories {
 	maven {
 		url "https://packages.confluent.io/maven/"
 	}
+	gradlePluginPortal()
 }
 
 dependencies {
@@ -64,3 +66,30 @@ tasks.named('bootBuildImage') {
 tasks.named('test') {
 	useJUnitPlatform()
 }
+
+// Define Maven repository to publish to
+publishing {
+    publications {
+        maven(MavenPublication) {
+        groupId = "com.inventium"
+        artifactId = "inventory-transaction-service"
+        version = "0.0.1-SNAPSHOT"
+        from components.java
+        }
+    }
+	repositories {
+        maven {
+			// Define the Buildkite repository to publish to
+			url "https://packages.buildkite.com/inventium/inventory-transaction-service/maven2/"
+			authentication {
+				header(HttpHeaderAuthentication)
+			}
+			credentials(HttpHeaderCredentials) {
+				name = "Authorization"
+				value = "Bearer ${System.getenv('BUILDKITE_TOKEN')}"
+			}
+        }
+    }
+}
+
+
