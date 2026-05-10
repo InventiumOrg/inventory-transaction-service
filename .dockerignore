@@ -43,3 +43,4 @@ Thumbs.db
 *.tmp
 *.swp
 *~
+src/main/resources/certs/
