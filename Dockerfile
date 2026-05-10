@@ -1,30 +1,50 @@
-# Runtime image - expects JAR to be built externally
+# -----------------------------------------------------------------------------
+# Stage 1: compile with Gradle wrapper (JDK 25, matches build.gradle toolchain)
+# -----------------------------------------------------------------------------
+FROM docker.io/amazoncorretto:25.0.2-alpine3.23 AS builder
+
+WORKDIR /workspace
+
+# Gradle wrapper + build definition (good layer cache when only src changes)
+COPY gradle/ gradle/
+COPY gradlew settings.gradle build.gradle ./
+
+RUN chmod +x gradlew \
+	&& sed -i 's/\r$//' gradlew
+
+# Warm dependency cache without compiling app code yet
+RUN ./gradlew --no-daemon dependencies
+
+COPY src/ src/
+
+RUN ./gradlew --no-daemon bootJar -x test \
+	&& JAR="$(find build/libs -maxdepth 1 -name '*.jar' ! -name '*-plain.jar' | head -n 1)" \
+	&& test -n "$JAR" \
+	&& cp "$JAR" /workspace/application.jar
+
+# -----------------------------------------------------------------------------
+# Stage 2: minimal runtime (JRE only)
+# -----------------------------------------------------------------------------
 FROM docker.io/amazoncorretto:25.0.2-alpine3.23
 
-# Combine RUN commands to reduce layers and image size
-RUN addgroup -S inventium && \
-    adduser -S appuser -G inventium
+RUN addgroup -S inventium \
+	&& adduser -S appuser -G inventium
 
 WORKDIR /app
 
-# Copy the pre-built JAR file from build directory
-# Build the JAR externally with: ./gradlew build
-COPY ./builder/libs/*.jar /app/application.jar
+COPY --from=builder /workspace/application.jar /app/application.jar
 
-# Set ownership and permissions in a single layer
-RUN chown appuser:inventium /app/application.jar && \
-    chmod 555 /app && \
-    chmod 444 /app/application.jar
+RUN chown appuser:inventium /app/application.jar \
+	&& chmod 555 /app \
+	&& chmod 444 /app/application.jar
 
-# Run as non-privileged user
 USER appuser
 
 EXPOSE 14330
 
-# Use exec form with optimized JVM flags for containers
 ENTRYPOINT ["java", \
-    "-XX:+UseContainerSupport", \
-    "-XX:MaxRAMPercentage=75.0", \
-    "-Djava.security.egd=file:/dev/./urandom", \
-    "-jar", \
-    "/app/application.jar"]
+	"-XX:+UseContainerSupport", \
+	"-XX:MaxRAMPercentage=75.0", \
+	"-Djava.security.egd=file:/dev/./urandom", \
+	"-jar", \
+	"/app/application.jar"]
