@@ -22,9 +22,9 @@ type Config struct {
 	// Kafka (inventory status updates)
 	KafkaTopicName       string `mapstructure:"KAFKA_TOPIC_NAME"`
 	KafkaBootstrapServer string `mapstructure:"KAFKA_BOOTSTRAP_SERVERS"`
-	KafkaCAFilePath      string `mapstructure:"KAFKA_CA_FILE_PATH"`
-	KafkaSvcCertLocation string `mapstructure:"KAFKA_SVC_CERT_LOCATION"`
-	KafkaSvcKeyLocation  string `mapstructure:"KAFKA_SVC_KEY_LOCATION"`
+	KafkaCAFilePath  string `mapstructure:"KAFKA_CA_FILE_PATH"`
+	KafkaUsername    string `mapstructure:"KAFKA_USERNAME"`
+	KafkaPassword    string `mapstructure:"KAFKA_PASSWORD"`
 	KafkaAutoRegister    bool   `mapstructure:"KAFKA_AUTO_REGISTER_SCHEMAS"`
 
 	// Schema Registry
@@ -55,7 +55,7 @@ func LoadConfig(path string) (Config, error) {
 		"SERVICE_NAME", "SERVER_PORT",
 		"AWS_REGION", "DYNAMODB_ENDPOINT", "DYNAMODB_TABLE_NAME",
 		"KAFKA_TOPIC_NAME", "KAFKA_BOOTSTRAP_SERVERS",
-		"KAFKA_CA_FILE_PATH", "KAFKA_SVC_CERT_LOCATION", "KAFKA_SVC_KEY_LOCATION", "KAFKA_AUTO_REGISTER_SCHEMAS",
+		"KAFKA_CA_FILE_PATH", "KAFKA_USERNAME", "KAFKA_PASSWORD", "KAFKA_AUTO_REGISTER_SCHEMAS",
 		"SCHEMA_REGISTRY_URL", "SCHEMA_REGISTRY_USERNAME", "SCHEMA_REGISTRY_PASSWORD",
 		"KAFKA_INVENTORY_SCHEMA_SUBJECT",
 		"OTEL_EXPORTER_OTLP_ENDPOINT", "OTEL_EXPORTER_OTLP_HEADERS", "OTEL_RESOURCE_ATTRIBUTES",

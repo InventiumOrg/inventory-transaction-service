@@ -16,39 +16,31 @@ import (
 	"inventory-transaction-service/observability"
 
 	"github.com/segmentio/kafka-go"
+	"github.com/segmentio/kafka-go/sasl/scram"
 )
 
-// InventoryProducer is the producer-side counterpart of inventory-service's
-// InventoryProcessor. It mirrors the same struct layout and Init method pattern,
-// adapting kafka.Reader → kafka.Writer.
-//
-// Authentication matches the original Java service exactly:
-//   - KAFKA_CA_FILE_PATH      — CA certificate for TLS server verification (ca.pem)
-//   - KAFKA_SVC_CERT_LOCATION — client certificate for mTLS (service.cert)
-//   - KAFKA_SVC_KEY_LOCATION  — client private key for mTLS  (service.key)
-//
-// This is the SSL security protocol (mutual TLS), not SASL_SSL.
+// InventoryProducer mirrors InventoryProcessor from inventory-service.
+// Uses SASL/SCRAM-SHA512 over TLS (SASL_SSL), verified with ca.pem.
 type InventoryProducer struct {
 	writer     *kafka.Writer
+	dialer     *kafka.Dialer
 	serializer *AvroSerializer
 	metrics    *observability.PrometheusMetrics
 }
 
 // NewInventoryProducer creates a bare InventoryProducer. Call Init before use.
 func NewInventoryProducer(metrics *observability.PrometheusMetrics) *InventoryProducer {
-	return &InventoryProducer{
-		metrics: metrics,
-	}
+	return &InventoryProducer{metrics: metrics}
 }
 
-// Init mirrors InventoryProcessor.Init from inventory-service:
+// Init mirrors InventoryProcessor.Init from inventory-service exactly:
 //  1. Initialize Avro serializer
-//  2. Read CA certificate  (kafka.inventory.ssl.ca.pem.location in the Java service)
+//  2. Read CA certificate (KAFKA_CA_FILE_PATH)
 //  3. Create TLS config with RootCAs
-//  4. Load client certificate + key  (kafka.inventory.ssl.svc.pem.location in the Java service)
-//  5. Init writer  (← kafka.NewReader in inventory-service)
+//  4. Create SCRAM-SHA512 mechanism (KAFKA_USERNAME / KAFKA_PASSWORD)
+//  5. Build kafka.Dialer (same fields as inventory-service)
+//  6. Init writer — producer equivalent of kafka.NewReader in inventory-service
 func (p *InventoryProducer) Init(cfg config.Config) error {
-	// Initialize Avro serializer
 	var registry *SchemaRegistryClient
 	if cfg.SchemaRegistryURL != "" {
 		registry = NewSchemaRegistryClient(
@@ -74,19 +66,18 @@ func (p *InventoryProducer) Init(cfg config.Config) error {
 		RootCAs: caCertPool,
 	}
 
-	if cfg.KafkaSvcCertLocation != "" && cfg.KafkaSvcKeyLocation != "" {
-		clientCert, err := tls.LoadX509KeyPair(cfg.KafkaSvcCertLocation, cfg.KafkaSvcKeyLocation)
-		if err != nil {
-			log.Fatalf("Failed to load client certificate: %s", err)
-		}
-		tlsConfig.Certificates = []tls.Certificate{clientCert}
-		slog.Info("Kafka mTLS: client certificate loaded",
-			slog.String("cert", cfg.KafkaSvcCertLocation),
-			slog.String("key", cfg.KafkaSvcKeyLocation))
+	scramMechanism, err := scram.Mechanism(scram.SHA512, cfg.KafkaUsername, cfg.KafkaPassword)
+	if err != nil {
+		log.Fatalf("Failed to create scram mechanism: %s", err)
 	}
 
-	// Init writer — producer equivalent of kafka.NewReader in inventory-service.
-	// Uses kafka.Transport with the same TLS config built above.
+	p.dialer = &kafka.Dialer{
+		Timeout:       10 * time.Second,
+		DualStack:     true,
+		TLS:           tlsConfig,
+		SASLMechanism: scramMechanism,
+	}
+
 	p.writer = &kafka.Writer{
 		Addr:                   kafka.TCP(splitBrokers(cfg.KafkaBootstrapServer)...),
 		Topic:                  cfg.KafkaTopicName,
@@ -96,6 +87,7 @@ func (p *InventoryProducer) Init(cfg config.Config) error {
 		WriteTimeout:           10 * time.Second,
 		Transport: &kafka.Transport{
 			TLS:         tlsConfig,
+			SASL:        scramMechanism,
 			DialTimeout: 10 * time.Second,
 		},
 	}
