@@ -35,7 +35,7 @@ RESPONSE=$(curl -s -X PUT $BASE_URL/api/v1/transactions/$INVENTORY_ID/$TRANSACTI
     "type": "IMPORT",
     "source": "Warehouse 11",
     "destination": "POS 02",
-    "inventoryId": "49",
+    "inventoryId": "'"$INVENTORY_ID"'",
     "inventoryMeasure": "bag",
     "inventoryCategory": "Coffee",
     "inventoryUnit": "kg",

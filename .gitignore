@@ -1,41 +1,47 @@
-HELP.md
-.gradle
-build/
-!gradle/wrapper/gradle-wrapper.jar
-!**/src/main/**/build/
-!**/src/test/**/build/
+### Go ###
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
 
-### STS ###
-.apt_generated
-.classpath
-.factorypath
-.project
-.settings
-.springBeans
-.sts4-cache
-bin/
-!**/src/main/**/bin/
-!**/src/test/**/bin/
+# Test binaries
+*.test
+*.out
 
-### IntelliJ IDEA ###
-.idea
+# Coverage
+*.coverprofile
+coverage.html
+
+# Built executable
+/inventory-transaction-service
+/bin/
+
+# Vendoring
+vendor/
+
+### Env / secrets ###
+.env
+app.env
+*.pem
+src/main/resources/certs/
+
+### IDE ###
+.vscode/
+.idea/
 *.iws
 *.iml
 *.ipr
 out/
-!**/src/main/**/out/
-!**/src/test/**/out/
 
-### NetBeans ###
-/nbproject/private/
-/nbbuild/
-/dist/
-/nbdist/
-/.nb-gradle/
+### OS ###
+.DS_Store
+Thumbs.db
 
-### VS Code ###
-.vscode/
+### Logs ###
+*.log
+logs/
 
-### Certificates ###
-src/main/resources/certs/
-.env
+### Temporary ###
+tmp/
+temp/

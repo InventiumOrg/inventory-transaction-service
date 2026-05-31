@@ -1,30 +1,31 @@
-# Runtime image - expects JAR to be built externally
-FROM docker.io/amazoncorretto:25.0.2-alpine3.23
+FROM --platform=$BUILDPLATFORM docker.io/golang:1.25-alpine AS builder
 
-# Combine RUN commands to reduce layers and image size
-RUN addgroup -S inventium && \
-    adduser -S appuser -G inventium
+ARG TARGETOS
+ARG TARGETARCH
 
 WORKDIR /app
 
-# Copy the pre-built JAR file from build directory
-# Build the JAR externally with: ./gradlew build
-COPY ./builder/libs/*.jar /app/application.jar
+RUN apk add --no-cache git ca-certificates tzdata
 
-# Set ownership and permissions in a single layer
-RUN chown appuser:inventium /app/application.jar && \
-    chmod 555 /app && \
-    chmod 444 /app/application.jar
+COPY go.mod go.sum ./
+RUN go mod download && go mod verify
 
-# Run as non-privileged user
-USER appuser
+COPY . .
+
+RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build \
+    -ldflags='-w -s' \
+    -o inventory-transaction-service .
+
+FROM --platform=$TARGETPLATFORM gcr.io/distroless/static-debian12:nonroot
+
+WORKDIR /app
+
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
+COPY --from=builder /app/inventory-transaction-service /app/inventory-transaction-service
+
+USER nonroot:nonroot
 
 EXPOSE 14330
 
-# Use exec form with optimized JVM flags for containers
-ENTRYPOINT ["java", \
-    "-XX:+UseContainerSupport", \
-    "-XX:MaxRAMPercentage=75.0", \
-    "-Djava.security.egd=file:/dev/./urandom", \
-    "-jar", \
-    "/app/application.jar"]
+CMD ["/app/inventory-transaction-service"]
