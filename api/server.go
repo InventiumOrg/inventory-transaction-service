@@ -89,7 +89,8 @@ func NewServer(
 	router.Use(srv.otelMetricsMiddleware())
 
 	h := handlers.NewHandlers(repo, producer, promMetrics)
-	r := routes.NewRoute(h)
+	hc := middlewares.NewHealthChecker(repo, promMetrics)
+	r := routes.NewRoute(h, hc)
 	r.AddHealthRoutes(router)
 	r.AddTransactionRoutes(router)
 

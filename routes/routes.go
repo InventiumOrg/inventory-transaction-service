@@ -2,27 +2,30 @@ package routes
 
 import (
 	"inventory-transaction-service/handlers"
+	"inventory-transaction-service/middlewares"
 
 	"github.com/gin-gonic/gin"
 )
 
 // Route exposes route-group helpers backed by a shared handlers value.
 type Route struct {
-	handlers *handlers.Handlers
+	handlers      *handlers.Handlers
+	healthChecker *middlewares.HealthChecker
 }
 
-func NewRoute(h *handlers.Handlers) *Route {
-	return &Route{handlers: h}
+func NewRoute(h *handlers.Handlers, hc *middlewares.HealthChecker) *Route {
+	return &Route{handlers: h, healthChecker: hc}
 }
 
-// AddHealthRoutes registers liveness/health endpoints.
+// AddHealthRoutes registers liveness/readiness endpoints.
 //
-// `/health` matches the Java service. `/healthz` and `/readyz` are added for
-// Kubernetes probe compatibility (matches the template).
+//   - GET /health   → simple liveness (matches Java HealthController)
+//   - GET /healthz  → liveness probe  (Kubernetes convention)
+//   - GET /readyz   → readiness probe: 200 only when DynamoDB is reachable
 func (r *Route) AddHealthRoutes(router *gin.Engine) {
 	router.GET("/health", r.handlers.Health)
-	router.GET("/healthz", r.handlers.Health)
-	router.GET("/readyz", r.handlers.Health)
+	router.GET("/healthz", r.healthChecker.LivezHandler)
+	router.GET("/readyz", r.healthChecker.ReadyzHandler)
 }
 
 // AddTransactionRoutes registers `/api/v1/transactions` endpoints.

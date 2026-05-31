@@ -113,6 +113,18 @@ func (r *TransactionRepository) FindById(ctx context.Context, inventoryId, id st
 	return record, nil
 }
 
+// Ping verifies the DynamoDB connection by describing the managed table.
+// Used by the /readyz health probe.
+func (r *TransactionRepository) Ping(ctx context.Context) error {
+	_, err := r.client.DescribeTable(ctx, &dynamodb.DescribeTableInput{
+		TableName: aws.String(r.tableName),
+	})
+	if err != nil {
+		return fmt.Errorf("dynamodb ping: %w", err)
+	}
+	return nil
+}
+
 // Update replaces the existing record. Uses PutItem to match the
 // "full replace" semantics of the Java enhanced-client `updateItem`.
 func (r *TransactionRepository) Update(ctx context.Context, record models.TransactionRecord) (models.TransactionRecord, error) {
