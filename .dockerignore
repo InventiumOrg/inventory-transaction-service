@@ -1,46 +1,48 @@
-# Build outputs
-build/
-.gradle/
-bin/
-out/
-
-# IDE files
-.idea/
-.vscode/
-*.iml
-*.ipr
-*.iws
-
-# Git
-.git/
+.git
 .gitignore
-.gitattributes
+.github
+.buildkite
+.vscode
+.idea
+.cursor
 
-# Documentation
-README.md
 *.md
+!README.md
 
-# Test files
-src/test/
+# Build artifacts
+bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+inventory-transaction-service
+*.test
+*.out
 
-# Docker files
-Dockerfile
-docker-compose.yml
-.dockerignore
+vendor/
 
-# CI/CD
-.github/
-.gitlab-ci.yml
+# Env files
+*.env
+.env
+.env.local
+.env.*.local
+app.env
+
+# TLS certificates — mount via secrets/volumes at runtime, never bake into image
+resources/
 
 # Logs
 *.log
+logs/
 
-# OS files
+# OS
 .DS_Store
 Thumbs.db
 
-# Temporary files
-*.tmp
-*.swp
-*~
-src/main/resources/certs/
+# Coverage
+*.coverprofile
+coverage.html
+
+tmp/
+temp/
