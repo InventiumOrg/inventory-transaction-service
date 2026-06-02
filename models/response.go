@@ -34,6 +34,14 @@ func ToResponse(t TransactionRecord) TransactionRecordResponse {
 	}
 }
 
+// ListTransactionResponse is the paginated list envelope returned by
+// GET /api/v1/transactions/:inventoryId.
+type ListTransactionResponse struct {
+	Data       []TransactionRecordResponse `json:"data"`
+	Count      int                         `json:"count"`
+	NextCursor string                      `json:"nextCursor,omitempty"`
+}
+
 // ErrorResponse mirrors the Java GlobalExceptionHandler response shape.
 type ErrorResponse struct {
 	Timestamp        time.Time         `json:"timestamp"`

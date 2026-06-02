@@ -113,6 +113,55 @@ func (r *TransactionRepository) FindById(ctx context.Context, inventoryId, id st
 	return record, nil
 }
 
+// FindByInventoryId returns all transactions for the given inventoryId, ordered
+// newest-first (descending sort key). Results are paginated: pass the returned
+// nextCursor as the `cursor` argument on subsequent calls to fetch the next page.
+// A cursor value of "" means the caller is on the first page.
+func (r *TransactionRepository) FindByInventoryId(
+	ctx context.Context,
+	inventoryId string,
+	limit int32,
+	cursor string,
+) ([]models.TransactionRecord, string, error) {
+	input := &dynamodb.QueryInput{
+		TableName:              aws.String(r.tableName),
+		KeyConditionExpression: aws.String("inventoryId = :pk"),
+		ExpressionAttributeValues: map[string]dtypes.AttributeValue{
+			":pk": &dtypes.AttributeValueMemberS{Value: inventoryId},
+		},
+		Limit:            aws.Int32(limit),
+		ScanIndexForward: aws.Bool(false),
+	}
+
+	if cursor != "" {
+		input.ExclusiveStartKey = map[string]dtypes.AttributeValue{
+			"inventoryId": &dtypes.AttributeValueMemberS{Value: inventoryId},
+			"id":          &dtypes.AttributeValueMemberS{Value: cursor},
+		}
+	}
+
+	out, err := r.client.Query(ctx, input)
+	if err != nil {
+		return nil, "", fmt.Errorf("query transactions: %w", err)
+	}
+
+	records := make([]models.TransactionRecord, 0, len(out.Items))
+	for _, item := range out.Items {
+		var rec models.TransactionRecord
+		if err := attributevalue.UnmarshalMap(item, &rec); err != nil {
+			return nil, "", fmt.Errorf("unmarshal item: %w", err)
+		}
+		records = append(records, rec)
+	}
+
+	var nextCursor string
+	if v, ok := out.LastEvaluatedKey["id"].(*dtypes.AttributeValueMemberS); ok {
+		nextCursor = v.Value
+	}
+
+	return records, nextCursor, nil
+}
+
 // Ping verifies the DynamoDB connection by describing the managed table.
 // Used by the /readyz health probe.
 func (r *TransactionRepository) Ping(ctx context.Context) error {

@@ -35,6 +35,7 @@ func (r *Route) AddTransactionRoutes(router *gin.Engine) {
 		tx := v1.Group("/transactions")
 		{
 			tx.POST("", r.handlers.CreateTransaction)
+			tx.GET("/:inventoryId", r.handlers.ListTransactions)
 			tx.GET("/:inventoryId/:id", r.handlers.GetTransaction)
 			tx.PUT("/:inventoryId/:id", r.handlers.UpdateTransaction)
 		}
