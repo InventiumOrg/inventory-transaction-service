@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"time"
 
 	"inventory-transaction-service/models"
@@ -67,6 +68,51 @@ func (h *Handlers) CreateTransaction(c *gin.Context) {
 		slog.String("inventoryId", saved.InventoryId))
 
 	c.JSON(http.StatusCreated, models.ToResponse(saved))
+}
+
+// ListTransactions handles `GET /api/v1/transactions/:inventoryId`.
+//
+// Query params:
+//   - limit  — page size (default 20, max 100)
+//   - cursor — opaque pagination token returned by the previous response
+func (h *Handlers) ListTransactions(c *gin.Context) {
+	ctx, span := h.Tracer.Start(c.Request.Context(), "ListTransactions")
+	defer span.End()
+
+	inventoryId := c.Param("inventoryId")
+	span.SetAttributes(attribute.String("inventory.id", inventoryId))
+
+	limit := int32(20)
+	if raw := c.Query("limit"); raw != "" {
+		if n, err := strconv.Atoi(raw); err == nil && n > 0 {
+			if n > 100 {
+				n = 100
+			}
+			limit = int32(n)
+		}
+	}
+	cursor := c.Query("cursor")
+
+	start := time.Now()
+	records, nextCursor, err := h.Repo.FindByInventoryId(ctx, inventoryId, limit, cursor)
+	if h.Metrics != nil {
+		h.Metrics.RecordDBOperation("list", "transaction", time.Since(start), err)
+	}
+	if err != nil {
+		writeInternalError(c, "Failed to list transaction records", err)
+		return
+	}
+
+	data := make([]models.TransactionRecordResponse, len(records))
+	for i, r := range records {
+		data[i] = models.ToResponse(r)
+	}
+
+	c.JSON(http.StatusOK, models.ListTransactionResponse{
+		Data:       data,
+		Count:      len(data),
+		NextCursor: nextCursor,
+	})
 }
 
 // GetTransaction handles `GET /api/v1/transactions/:inventoryId/:id`.
